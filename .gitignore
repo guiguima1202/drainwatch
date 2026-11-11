@@ -1,0 +1,14 @@
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Editores e ferramentas de compilação
+.vscode/
+.idea/
+.pio/
+build/
+*.bin
+*.elf
+
+# Nunca versionar senhas reais de Wi-Fi
+secrets.h

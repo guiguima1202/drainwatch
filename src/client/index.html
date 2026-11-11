@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DrainWatch: nível de água</title>
+<style>
+  :root {
+    --fundo: #e9efee; --papel: #ffffff; --tinta: #14262e; --suave: #4c6068; --linha: #c5d2d0;
+    --cor: #8a979c; --cor-texto: #ffffff;
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fundo: #0f1b20; --papel: #18282f; --tinta: #e8f0f1; --suave: #9db0b6; --linha: #2d444d; }
+  }
+  body[data-status="normal"]  { --cor: #2b7a5a; --cor-texto: #ffffff; }
+  body[data-status="atencao"] { --cor: #e0a21a; --cor-texto: #14262e; }
+  body[data-status="critico"] { --cor: #c23b2b; --cor-texto: #ffffff; }
+  body[data-status="erro"]    { --cor: #5f6e75; --cor-texto: #ffffff; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fundo); color: var(--tinta); font-size: 18px; line-height: 1.45; }
+  header, main { max-width: 1040px; margin: 0 auto; padding: 20px; }
+  header { display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: end; justify-content: space-between; }
+  h1 { margin: 0; font-size: 32px; line-height: 1.1; }
+  h2 { margin: 0 0 12px; font-size: 20px; }
+  .sub { margin: 4px 0 0; color: var(--suave); }
+  .conexao { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .selo { display: inline-block; padding: 4px 14px; border-radius: 999px; font-weight: 700; background: var(--cor); color: var(--cor-texto); }
+  #selo-conexao { --cor: #8a979c; background: #8a979c; color: #fff; }
+  body[data-conexao="online"]  #selo-conexao { background: #2b7a5a; }
+  body[data-conexao="offline"] #selo-conexao { background: #c23b2b; }
+  form { display: flex; gap: 8px; }
+  input { font: inherit; padding: 8px 12px; border: 2px solid var(--linha); border-radius: 8px; background: var(--papel); color: var(--tinta); width: 11em; }
+  button { font: inherit; font-weight: 600; padding: 10px 18px; border-radius: 8px; border: 2px solid var(--tinta); background: var(--papel); color: var(--tinta); cursor: pointer; }
+  button[aria-pressed="true"] { background: var(--tinta); color: var(--papel); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  :focus-visible { outline: 3px solid #1b7fd1; outline-offset: 2px; }
+  main { display: grid; grid-template-columns: 260px 1fr; gap: 20px; align-items: start; }
+  .cartao { background: var(--papel); border: 1px solid var(--linha); border-radius: 12px; padding: 20px; }
+  .direita { display: grid; gap: 20px; }
+
+  .tanque { position: relative; height: 420px; width: 100%; max-width: 220px; margin: 0 auto; border: 3px solid var(--tinta); border-top: 0; border-radius: 0 0 28px 28px; overflow: hidden; background: var(--papel); }
+  .agua { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: var(--cor); opacity: .85; transition: height .6s ease; }
+  .marca { position: absolute; left: 0; right: 0; border-top: 2px dashed var(--tinta); }
+  .marca span { position: absolute; right: 6px; top: -12px; padding: 0 6px; font-size: 14px; background: var(--papel); border-radius: 4px; }
+  .percentual { margin: 16px 0 0; text-align: center; font-size: 56px; font-weight: 800; line-height: 1; }
+  .percentual small { font-size: 24px; font-weight: 600; }
+  .leituras { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px 20px; margin: 16px 0 0; }
+  .leituras dt { color: var(--suave); font-size: 15px; }
+  .leituras dd { margin: 0; font-size: 22px; font-weight: 700; }
+  .botoes { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  #lista-eventos { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; }
+  #lista-eventos li { padding: 6px 0; border-bottom: 1px solid var(--linha); font-size: 16px; }
+  #lista-eventos time { color: var(--suave); margin-right: 8px; }
+  body[data-conexao="offline"] .leituras, body[data-conexao="offline"] .percentual { opacity: .45; }
+  .log { margin: 12px 0 0; max-height: 240px; overflow: auto; padding: 12px; background: var(--fundo); border-radius: 8px; font: 14px/1.5 Consolas, "Courier New", monospace; white-space: pre-wrap; }
+  @media (max-width: 760px) { main { grid-template-columns: 1fr; } }
+  @media (prefers-reduced-motion: reduce) { .agua { transition: none; } }
+</style>
+</head>
+<body data-conexao="aguardando" data-status="sem-dados">
+
+<header>
+  <div>
+    <h1>DrainWatch</h1>
+    <p class="sub">Nível de água monitorado pelo ESP32</p>
+  </div>
+  <div class="conexao">
+    <span id="selo-conexao" class="selo" role="status">Aguardando</span>
+    <form id="form-ip">
+      <label for="campo-ip" class="sub">Endereço do ESP32</label>
+      <input id="campo-ip" placeholder="192.168.0.50" autocomplete="off">
+      <button type="submit">Conectar</button>
+    </form>
+  </div>
+</header>
+
+<main>
+  <section class="cartao" aria-labelledby="t-nivel">
+    <h2 id="t-nivel">Nível no balde</h2>
+    <div id="tanque" class="tanque" role="img" aria-label="Sem leitura">
+      <div id="agua" class="agua"></div>
+      <div class="marca" style="bottom:50%"><span>Atenção 50%</span></div>
+      <div class="marca" style="bottom:70%"><span>Crítico 70%</span></div>
+    </div>
+    <p class="percentual"><span id="percentual">--</span><small> %</small></p>
+  </section>
+
+  <div class="direita">
+    <section class="cartao" aria-labelledby="t-sensor">
+      <h2 id="t-sensor">Sensor</h2>
+      <span id="selo-status" class="selo" aria-live="polite">Sem dados</span>
+      <dl class="leituras">
+        <div><dt>Altura da água</dt><dd><span id="nivel">--</span> cm</dd></div>
+        <div><dt>Distância da sonda</dt><dd><span id="distancia">--</span> cm</dd></div>
+        <div><dt>Sinal Wi-Fi</dt><dd id="sinal">--</dd></div>
+        <div><dt>ESP32 ligado há</dt><dd id="uptime">--</dd></div>
+        <div><dt>Última atualização</dt><dd id="hora">--</dd></div>
+      </dl>
+    </section>
+
+    <section class="cartao" aria-labelledby="t-bomba">
+      <h2 id="t-bomba">Bomba de dreno</h2>
+      <dl class="leituras">
+        <div><dt>Estado</dt><dd id="bomba-estado">--</dd></div>
+        <div><dt>Modo</dt><dd id="modo-bomba">--</dd></div>
+        <div><dt>Tempo ligada</dt><dd id="bomba-tempo">--</dd></div>
+        <div><dt>Proteção</dt><dd id="bomba-bloqueio">--</dd></div>
+      </dl>
+      <div class="botoes">
+        <button id="btn-bomba-on" type="button" disabled>Ligar bomba</button>
+        <button id="btn-bomba-off" type="button" disabled>Desligar bomba</button>
+        <button id="btn-bomba-auto" type="button" disabled>Modo automático</button>
+      </div>
+    </section>
+
+    <section class="cartao" aria-labelledby="t-dispositivo">
+      <h2 id="t-dispositivo">Dispositivo</h2>
+      <dl class="leituras">
+        <div><dt>Endereço IP</dt><dd id="ip-esp">--</dd></div>
+        <div><dt>MAC address</dt><dd id="mac">--</dd></div>
+        <div><dt>Rede</dt><dd id="rede">--</dd></div>
+        <div><dt>Porta do servidor</dt><dd id="porta">--</dd></div>
+        <div><dt>Hora do ESP32</dt><dd id="hora-esp">--</dd></div>
+      </dl>
+    </section>
+
+    <section class="cartao" aria-labelledby="t-log">
+      <h2 id="t-log">Log do ESP32 (memória flash)</h2>
+      <div class="botoes">
+        <button id="btn-log" type="button" disabled>Atualizar log</button>
+        <button id="btn-limpar-log" type="button" disabled>Limpar log</button>
+      </div>
+      <pre id="log-texto" class="log" tabindex="0">Aguardando conexão.</pre>
+    </section>
+
+    <section class="cartao" aria-labelledby="t-eventos">
+      <h2 id="t-eventos">Eventos</h2>
+      <ul id="lista-eventos"><li>Nenhum evento ainda.</li></ul>
+    </section>
+  </div>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
