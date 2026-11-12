@@ -137,6 +137,13 @@ Os diagramas estão em `docs/arquitetura.png`, `docs/esquematico_sensor.png` e `
 - A emenda dos fios da bomba é vedada com fita; um produto final usaria conector estanque.
 - O histórico de leituras não é guardado no cliente.
 
+
+
 ## Uso de ferramentas de IA
 
-(Ajuste este texto ao que a equipe realmente fez.) Usamos o Claude para tirar dúvidas, revisar o código e preparar a documentação. A equipe testou o sistema e é responsável por todo o código e por todo o conteúdo entregue.
+- Tirar dúvidas sobre o ESP32, o sensor JSN-SR04T e a comunicação HTTP.
+- Revisar o código do ESP32 e do cliente web e sugerir melhorias.
+- Ajudar a organizar e redigir a documentação deste README.
+- Orientar o uso do Git e do GitHub (repositório, commits e envio de arquivos).
+
+Todas as sugestões foram revisadas pela equipe antes de entrar no projeto. A montagem do hardware e os testes (T1 a T5) foram feitos pela equipe, e os integrantes são responsáveis por todo o código e conteúdo entregue.
